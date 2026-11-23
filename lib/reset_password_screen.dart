@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import 'api_service.dart';
 import 'validators.dart';
 import 'auth_widgets.dart';
 
@@ -17,22 +18,35 @@ class _ResetPasswordScreenState
 
   String? _emailError;
 
-  void _resetPassword() {
+  bool _isSending = false;
+
+  Future<void> _resetPassword() async {
     setState(() {
-      _emailError = Validators.email(
-        _emailController.text,
-      );
+      _emailError = Validators.email(_emailController.text);
     });
 
-    if (_emailError == null) {
+    if (_emailError != null) return;
+
+    setState(() => _isSending = true);
+    try {
+      await ApiService.resetPassword(email: _emailController.text);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Email правильний.',
-          ),
+          content: Text('POST /reset-password успішно надіслано'),
           backgroundColor: Colors.green,
         ),
       );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ApiService.errorMessage(error)),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSending = false);
     }
   }
 
@@ -80,13 +94,22 @@ class _ResetPasswordScreenState
           const SizedBox(height: 10),
 
           ElevatedButton(
-            onPressed: _resetPassword,
+            onPressed: _isSending ? null : _resetPassword,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.all(16),
             ),
-            child: const Text('Reset password'),
+            child: _isSending
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Reset password'),
           ),
 
           const SizedBox(height: 12),

@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import 'api_service.dart';
 import 'validators.dart';
 import 'auth_widgets.dart';
 import 'sign_up_screen.dart';
@@ -19,26 +20,39 @@ class _SignInScreenState extends State<SignInScreen> {
   String? _emailError;
   String? _passwordError;
 
-  void _login() {
-    setState(() {
-      _emailError = Validators.email(
-        _emailController.text,
-      );
+  bool _isSending = false;
 
-      _passwordError = Validators.password(
-        _passwordController.text,
-      );
+  Future<void> _login() async {
+    setState(() {
+      _emailError = Validators.email(_emailController.text);
+      _passwordError = Validators.password(_passwordController.text);
     });
 
-    if (_emailError == null && _passwordError == null) {
+    if (_emailError != null || _passwordError != null) return;
+
+    setState(() => _isSending = true);
+    try {
+      await ApiService.login(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Дані правильні.',
-          ),
+          content: Text('POST /login успішно надіслано'),
           backgroundColor: Colors.green,
         ),
       );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ApiService.errorMessage(error)),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSending = false);
     }
   }
 
@@ -86,13 +100,22 @@ class _SignInScreenState extends State<SignInScreen> {
           const SizedBox(height: 10),
 
           ElevatedButton(
-            onPressed: _login,
+            onPressed: _isSending ? null : _login,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.all(16),
             ),
-            child: const Text('Login'),
+            child: _isSending
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Login'),
           ),
 
           const SizedBox(height: 12),
